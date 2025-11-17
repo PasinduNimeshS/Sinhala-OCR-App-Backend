@@ -3,35 +3,49 @@ name: Build and Deploy to Cloud Run
 on:
   push:
     branches:
-      - main  # Trigger on push to the main branch
+      - main
+
+# Required for Workload Identity Federation
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the code
+      # 1. Checkout code
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
-      # Step 2: Set up Google Cloud SDK
-      - name: Set up Google Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0.2.0
+      # 2. Authenticate to Google Cloud using Workload Identity (NO JSON key!)
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          project_id: sinhala-ocr-476915  # Your actual project ID
-          credentials: ${{ secrets.GCP_CREDENTIALS }}  # Store the JSON key as a secret in GitHub
+          workload_identity_provider: projects/584089990948/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: ci-deployer@sinhala-ocr-476915.iam.gserviceaccount.com
 
-      # Step 3: Build and push Docker image to Google Container Registry (GCR)
+      # 3. Set up Cloud SDK
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      # 4. Configure Docker for Artifact Registry / GCR
+      - name: Configure Docker
+        run: gcloud auth configure-docker --quiet
+
+      # 5. Build and push Docker image
       - name: Build and push Docker image
         run: |
-          docker build -t gcr.io/sinhala-ocr-476915/my-fastapi-app .
-          docker push gcr.io/sinhala-ocr-476915/my-fastapi-app
+          docker build -t gcr.io/sinhala-ocr-476915/my-fastapi-app:latest .
+          docker push gcr.io/sinhala-ocr-476915/my-fastapi-app:latest
 
-      # Step 4: Deploy to Google Cloud Run
+      # 6. Deploy to Cloud Run
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy my-fastapi-app \
-            --image gcr.io/sinhala-ocr-476915/my-fastapi-app \
+            --image gcr.io/sinhala-ocr-476915/my-fastapi-app:latest \
             --platform managed \
             --region us-central1 \
-            --allow-unauthenticated
+            --allow-unauthenticated \
+            --quiet
