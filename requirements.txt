@@ -10,3 +10,4 @@ scipy
 numpy
 tqdm
 python-dotenv
+gunicorn
