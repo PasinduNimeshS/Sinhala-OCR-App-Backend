@@ -49,4 +49,7 @@ jobs:
             --region us-central1 \
             --allow-unauthenticated \
             --service-account=ci-deployer@sinhala-ocr-476915.iam.gserviceaccount.com \
+            --memory=4Gi \
+            --cpu=2 \
+            --timeout=300 \
             --quiet
